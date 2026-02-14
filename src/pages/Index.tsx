@@ -2,6 +2,9 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { BookOpen, Award, Users, Zap, ArrowRight, Flame } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/lib/auth-context";
+import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 const features = [
   { icon: BookOpen, title: "Learn Finance", desc: "Bite-sized video lessons on savings, investing & more", color: "bg-primary/15 text-primary" },
@@ -11,6 +14,16 @@ const features = [
 ];
 
 export default function Index() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Redirect to app if already authenticated
+    if (user) {
+      navigate('/app');
+    }
+  }, [user, navigate]);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero */}
@@ -40,12 +53,12 @@ export default function Index() {
               Learn finance, earn rewards, grow your wealth — one lesson at a time 🌱
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link to="/app">
+              <Link to="/signup">
                 <Button size="lg" className="rounded-2xl bg-primary text-primary-foreground font-bold text-base px-8 shadow-warm hover:bg-primary/90 transition-colors w-full sm:w-auto">
                   Get Started <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
-              <Link to="/app">
+              <Link to="/login">
                 <Button size="lg" variant="outline" className="rounded-2xl font-bold text-base px-8 border-primary text-primary hover:bg-primary/10 w-full sm:w-auto">
                   Sign In
                 </Button>
@@ -88,7 +101,7 @@ export default function Index() {
           <Flame className="w-10 h-10 text-primary-foreground mx-auto mb-3" />
           <h2 className="font-display text-xl text-primary-foreground mb-2">Start your streak today!</h2>
           <p className="text-primary-foreground/80 text-sm mb-5">Join thousands of learners building financial literacy</p>
-          <Link to="/app">
+          <Link to="/signup">
             <Button size="lg" variant="outline" className="rounded-2xl font-bold bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 hover:bg-primary-foreground/30">
               Sign Up Free
             </Button>
