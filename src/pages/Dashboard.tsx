@@ -1,17 +1,40 @@
 import { XPBadge, StreakBadge } from "@/components/XPBadge";
 import { motion } from "framer-motion";
-import { Sparkles, TrendingUp, BookOpen, Bell } from "lucide-react";
-import { useProgress } from "@/lib/progress-store";
-import { modules } from "@/lib/academy-data";
+import { Sparkles, TrendingUp, BookOpen, Bell, Loader2 } from "lucide-react";
+import { useModulesWithLessons, useUserProgress, useUserStats } from "@/hooks/use-supabase";
+import { useAuth } from "@/lib/auth-context";
 import { Link } from "react-router-dom";
 
 export default function Dashboard() {
-  const { progress } = useProgress();
+  const { profile } = useAuth();
+  const { data: modules, isLoading: modulesLoading } = useModulesWithLessons();
+  const { data: progressData, isLoading: progressLoading } = useUserProgress();
+  const { data: stats, isLoading: statsLoading } = useUserStats();
 
-  const allLessons = modules.flatMap((m) => m.lessons);
+  const isLoading = modulesLoading || progressLoading || statsLoading;
+
+  if (isLoading) {
+    return (
+      <div className="max-w-lg mx-auto px-4 pt-6 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const allLessons = modules?.flatMap((m) => m.lessons) || [];
+  const progressMap = Object.fromEntries(
+    (progressData || []).map((p) => [p.lesson_id, p])
+  );
   const completedCount = allLessons.filter(
-    (l) => progress.lessons[l.id]?.videoWatched && progress.lessons[l.id]?.quizCompleted
+    (l) => progressMap[l.id]?.video_watched && progressMap[l.id]?.quiz_completed
   ).length;
+
+  const totalXp = stats?.total_xp || 0;
+  const level = stats?.level || 1;
+  const streak = stats?.streak || 0;
 
   return (
     <div className="max-w-lg mx-auto px-4 pt-6">
@@ -19,11 +42,13 @@ export default function Dashboard() {
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-6">
         <div>
           <p className="text-sm text-muted-foreground font-medium">Welcome back</p>
-          <h1 className="text-2xl font-extrabold text-foreground">Learner <span className="inline-block">👋</span></h1>
+          <h1 className="text-2xl font-extrabold text-foreground">
+            {profile?.full_name || 'Learner'} <span className="inline-block">👋</span>
+          </h1>
         </div>
         <div className="flex gap-2">
-          <StreakBadge streak={progress.streak} />
-          <XPBadge xp={progress.totalXp} />
+          <StreakBadge streak={streak} />
+          <XPBadge xp={totalXp} />
         </div>
       </motion.div>
 
@@ -54,9 +79,9 @@ export default function Dashboard() {
       {/* Quick Stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {[
-          { icon: TrendingUp, label: "Level", value: progress.level, color: "text-primary" },
+          { icon: TrendingUp, label: "Level", value: level, color: "text-primary" },
           { icon: BookOpen, label: "Completed", value: `${completedCount}/${allLessons.length}`, color: "text-accent" },
-          { icon: Bell, label: "Streak", value: `${progress.streak}d`, color: "text-streak" },
+          { icon: Bell, label: "Streak", value: `${streak}d`, color: "text-streak" },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -75,9 +100,9 @@ export default function Dashboard() {
       {/* Continue Learning */}
       <h2 className="text-lg font-bold text-foreground mb-3">Continue Learning</h2>
       <div className="space-y-3 mb-6">
-        {modules.map((mod, i) => {
+        {modules?.map((mod, i) => {
           const modCompleted = mod.lessons.filter(
-            (l) => progress.lessons[l.id]?.videoWatched && progress.lessons[l.id]?.quizCompleted
+            (l) => progressMap[l.id]?.video_watched && progressMap[l.id]?.quiz_completed
           ).length;
           const modProgress = mod.lessons.length > 0 ? (modCompleted / mod.lessons.length) * 100 : 0;
 

@@ -1,20 +1,59 @@
 import { useNavigate } from "react-router-dom";
-import { modules, type Module } from "@/lib/academy-data";
-import { type UserProgress } from "@/lib/progress-store";
 import { LevelNode } from "./LevelNode";
 import { XpBadge } from "./XpBadge";
 import { ProgressBar } from "./ProgressBar";
 
-interface LevelMapProps {
-  progress: UserProgress;
+interface Module {
+  id: string;
+  title: string;
+  emoji: string;
+  color: string;
+  order_index: number;
+  lessons: Lesson[];
 }
 
-export function LevelMap({ progress }: LevelMapProps) {
+interface Lesson {
+  id: string;
+  module_id: string;
+  title: string;
+  emoji: string;
+  video_id: string;
+  description: string;
+  xp_required: number;
+  order_index: number;
+}
+
+interface ProgressData {
+  lesson_id: string;
+  video_watched: boolean;
+  quiz_completed: boolean;
+  quiz_score: number;
+  rating: number | null;
+  xp_earned: number;
+}
+
+interface Stats {
+  total_xp: number;
+  level: number;
+  streak: number;
+}
+
+interface LevelMapProps {
+  modules: Module[];
+  progressData: ProgressData[];
+  stats: Stats;
+}
+
+export function LevelMap({ modules, progressData, stats }: LevelMapProps) {
   const navigate = useNavigate();
+
+  const progressMap = Object.fromEntries(
+    progressData.map((p) => [p.lesson_id, p])
+  );
 
   const allLessons = modules.flatMap((m) => m.lessons);
   const completedCount = allLessons.filter(
-    (l) => progress.lessons[l.id]?.videoWatched && progress.lessons[l.id]?.quizCompleted
+    (l) => progressMap[l.id]?.video_watched && progressMap[l.id]?.quiz_completed
   ).length;
 
   return (
@@ -23,8 +62,8 @@ export function LevelMap({ progress }: LevelMapProps) {
         <h1 className="text-4xl font-bold text-foreground">🎓 Financial Academy</h1>
         <p className="text-muted-foreground text-lg">Master your money skills, one level at a time!</p>
         <div className="flex items-center justify-center gap-4">
-          <XpBadge xp={progress.totalXp} size="lg" />
-          <span className="text-muted-foreground font-semibold">Level {progress.level}</span>
+          <XpBadge xp={stats.total_xp} size="lg" />
+          <span className="text-muted-foreground font-semibold">Level {stats.level}</span>
         </div>
         <div className="max-w-md mx-auto">
           <ProgressBar current={completedCount} max={allLessons.length} label="Lessons Completed" color="secondary" />
@@ -35,7 +74,8 @@ export function LevelMap({ progress }: LevelMapProps) {
         <ModuleSection
           key={mod.id}
           module={mod}
-          progress={progress}
+          progressMap={progressMap}
+          totalXp={stats.total_xp}
           onLessonClick={(lessonId) => navigate(`/app/lesson/${lessonId}`)}
         />
       ))}
@@ -45,15 +85,17 @@ export function LevelMap({ progress }: LevelMapProps) {
 
 function ModuleSection({
   module: mod,
-  progress,
+  progressMap,
+  totalXp,
   onLessonClick,
 }: {
   module: Module;
-  progress: UserProgress;
+  progressMap: Record<string, ProgressData>;
+  totalXp: number;
   onLessonClick: (id: string) => void;
 }) {
   const moduleXp = mod.lessons.reduce(
-    (sum, l) => sum + (progress.lessons[l.id]?.xpEarned || 0), 0
+    (sum, l) => sum + (progressMap[l.id]?.xp_earned || 0), 0
   );
   const maxModuleXp = mod.lessons.length * 25;
 
@@ -69,9 +111,9 @@ function ModuleSection({
       <div className="mt-6 overflow-x-auto scrollbar-hide pb-4">
         <div className="flex items-center gap-4 min-w-max px-2">
           {mod.lessons.map((lesson, i) => {
-            const lp = progress.lessons[lesson.id];
-            const isCompleted = !!(lp?.videoWatched && lp?.quizCompleted);
-            const isLocked = progress.totalXp < lesson.xpRequired;
+            const lp = progressMap[lesson.id];
+            const isCompleted = !!(lp?.video_watched && lp?.quiz_completed);
+            const isLocked = totalXp < lesson.xp_required;
             const isCurrent = !isLocked && !isCompleted;
 
             return (
